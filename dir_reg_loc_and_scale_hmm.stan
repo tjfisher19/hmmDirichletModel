@@ -1,17 +1,20 @@
 // This code implements the Hidden Markov Model with a Dirichlet response
 //
-// Here, the shape parameters from the Dirichlet distribution are modeled
+// Here, the shape parameters from the Dirichlet distribution are 
+// decomposed into a location and scale term, each is then modeled
 // with a log-link linear model (Dirichlet regression idea).
 //
 // We constrain the Markov Model so that it will begin in State 1
-// and stay there for P time units (one year in our data application).
+// and stay there for P time units (one year in our data application
+// where we model with predictors mapping to the seasonal terms).
 // Thus, providing a burn-in type period for the initial parameters 
 // to be set. 
 //
 // Snagged base of the code from here and then modified using Rstan manual:
 //  https://github.com/stan-dev/stancon_talks/blob/master/2018/Contributed-Talks/04_damiano/stan/iohmm_reg.stan
-
-
+//
+// by: Thomas J. Fisher
+//
 
 functions {
   vector normalize(vector x) {
@@ -31,6 +34,10 @@ data {
   // priors for transition matrix
   real<lower = 0.0> rho_a;
   real<lower = 0.0> rho_b;
+  
+  // priors for variance of model coefficients
+  real<lower = 0.0> b_loc_sig;
+  real<lower = 0.0> b_scale_sig;
 }
 
 parameters {
@@ -92,11 +99,11 @@ transformed parameters {
    // Given we have seasonal data - let the seasons
    // be seeded with the first observation
     // We essentially force the HMM to start in state 1
-    // by adding a large penalty to higher states
+    // by adding (subtracting) a large penalty to higher states
     for(t in 1:P) {
-      logalpha[t][1] = logoblik[t][1];
-      for (j in 2:M) {
-        logalpha[t][j] = logoblik[t][j] + log(0.000000001);  // always start in state 1
+      logalpha[t][1] = log(1) + logoblik[t][1];    // always start in stat 1
+      for (j in 2:M) {                             // pi_1 = 1, pi_j = 0
+        logalpha[t][j] = log(0) + logoblik[t][j];  // on log scale
       }
     }
 
@@ -115,8 +122,8 @@ transformed parameters {
 
 model {
 
-  to_array_1d(b_loc) ~ normal(0, 2);
-  to_array_1d(b_scale) ~ normal(0, 2);
+  to_array_1d(b_loc) ~ normal(0, b_loc_sig);
+  to_array_1d(b_scale) ~ normal(0, b_scale_sig);
 
   prob_remain ~ beta(rho_a, rho_b);
 
