@@ -103,7 +103,9 @@ transformed parameters {
     for(t in 1:P) {
       logalpha[t][1] = log(1) + logoblik[t][1];    // always start in stat 1
       for (j in 2:M) {                             // pi_1 = 1, pi_j = 0
-        logalpha[t][j] = log(0) + logoblik[t][j];  // on log scale
+        // The equation below should be logalpha[t][j] = -\intfy or negative_infinity(). 
+        // Here, we use a large magnitude negative numbers so the gradient has a finite value
+        logalpha[t][j] = -10^200;                  // on log scale, near negative infinity
       }
     }
 
